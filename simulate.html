@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulate · WC 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #00e676;
+      --dark:    #060d13;
+      --mid:     #0c1a22;
+      --card:    #0f1e2b;
+      --border:  rgba(255,255,255,.08);
+      --muted:   #4a6a7a;
+      --text:    #b8ceda;
+      --white:   #f0f6fa;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--dark);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── grid bg ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        repeating-linear-gradient(90deg,
+          transparent 0, transparent 59px,
+          rgba(0,230,118,.03) 60px, rgba(0,230,118,.03) 61px),
+        repeating-linear-gradient(0deg,
+          transparent 0, transparent 59px,
+          rgba(0,230,118,.03) 60px, rgba(0,230,118,.03) 61px);
+    }
+
+    /* ── header ── */
+    header {
+      position: relative; z-index: 10;
+      background: var(--mid);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 28px;
+    }
+    header a {
+      font-size: .85rem;
+      color: var(--muted);
+      text-decoration: none;
+      letter-spacing: .02em;
+      transition: color .15s;
+    }
+    header a:hover { color: var(--green); }
+    .header-sep { color: var(--border); }
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .1em;
+      color: var(--green);
+    }
+
+    /* ── layout ── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── card ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 36px 32px;
+      box-shadow: 0 4px 32px rgba(0,0,0,.4);
+    }
+
+    .card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: .08em;
+      color: var(--white);
+      margin-bottom: 6px;
+    }
+    .card-sub {
+      font-size: .88rem;
+      font-weight: 300;
+      color: var(--muted);
+      margin-bottom: 36px;
+      line-height: 1.5;
+    }
+
+    /* ── slider group ── */
+    .slider-group { margin-bottom: 30px; }
+    .slider-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 10px;
+    }
+    .slider-name {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: .01em;
+    }
+    .slider-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: .05em;
+      color: var(--green);
+      line-height: 1;
+    }
+    /* tick marks wrapper */
+    .slider-track {
+      position: relative;
+      margin-bottom: 8px;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 99px;
+      outline: none;
+      cursor: pointer;
+      background: linear-gradient(
+        to right,
+        var(--green) 0%, var(--green) 50%,
+        rgba(255,255,255,.12) 50%, rgba(255,255,255,.12) 100%
+      );
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 3px solid var(--dark);
+      box-shadow: 0 0 0 2px var(--green), 0 2px 8px rgba(0,230,118,.4);
+      cursor: pointer;
+      transition: box-shadow .15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 4px rgba(0,230,118,.25), 0 2px 12px rgba(0,230,118,.5);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 3px solid var(--dark);
+      cursor: pointer;
+    }
+
+    /* tick labels */
+    .ticks {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+    .tick {
+      font-size: 10px;
+      color: var(--muted);
+      width: 18px;
+      text-align: center;
+    }
+
+    /* helper toggle */
+    .helper-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 4px;
+      font-size: .82rem;
+      font-style: italic;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: color .15s;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+    }
+    .helper-toggle:hover { color: var(--green); }
+    .helper-arrow {
+      display: inline-block;
+      transition: transform .2s;
+      font-style: normal;
+    }
+    .helper-toggle.expanded .helper-arrow { transform: rotate(180deg); }
+    .helper-body {
+      display: none;
+      margin-top: 10px;
+      padding: 14px 16px;
+      background: rgba(0,230,118,.04);
+      border-left: 2px solid rgba(0,230,118,.25);
+      border-radius: 0 6px 6px 0;
+      font-size: .88rem;
+      font-weight: 300;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    .helper-body.open { display: block; }
+    .helper-close {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: .8rem;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: underline;
+      font-style: normal;
+    }
+    .helper-close:hover { color: var(--text); }
+
+    /* divider */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 28px 0;
+    }
+
+    /* ── run button ── */
+    .run-btn {
+      width: 100%;
+      padding: 17px;
+      background: var(--green);
+      color: var(--dark);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: .15em;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform .18s, box-shadow .18s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .run-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(0,230,118,.35);
+    }
+    .run-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    /* ── loading ── */
+    #loading {
+      display: none;
+      text-align: center;
+      padding: 60px 0;
+    }
+    #loading.visible { display: block; }
+    .spinner {
+      width: 52px; height: 52px;
+      margin: 0 auto 20px;
+      border: 3px solid rgba(0,230,118,.15);
+      border-top: 3px solid var(--green);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text {
+      font-size: .95rem;
+      font-weight: 300;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── results ── */
+    #results { display: none; }
+    #results.visible { display: block; }
+
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 28px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 32px rgba(0,0,0,.3);
+    }
+    .result-card h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: .08em;
+      color: var(--white);
+      margin-bottom: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .gs-img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+
+    .bracket-scroll {
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+    /* bracket HTML uses inline styles from Python, so just ensure it scrolls */
+
+    .reset-btn {
+      width: 100%;
+      padding: 15px;
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem;
+      font-weight: 600;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: .02em;
+      transition: all .18s;
+      margin-top: 8px;
+    }
+    .reset-btn:hover {
+      background: rgba(255,255,255,.05);
+      color: var(--white);
+      border-color: rgba(255,255,255,.2);
+    }
+
+    /* ── error banner ── */
+    .error-banner {
+      display: none;
+      background: rgba(255,80,80,.1);
+      border: 1px solid rgba(255,80,80,.25);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-top: 16px;
+      font-size: .9rem;
+      color: #ff8080;
+    }
+    .error-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="index.html">← Home</a>
+    <span class="header-sep">|</span>
+    <h1>🏆 WC 2026 Simulator</h1>
+  </header>
+
+  <div class="container">
+
+    <!-- ── Control Panel ── -->
+    <div class="card" id="control-panel">
+      <div class="card-title">Configure Your Simulation</div>
+      <p class="card-sub">
+        Set the parameters below, then hit <strong style="color:var(--green)">Run</strong>.
+        Values will be scaled to [0–1] before being sent to the model.
+      </p>
+
+      <!-- Rho slider -->
+      <div class="slider-group">
+        <div class="slider-meta">
+          <span class="slider-name">Form Change Factor</span>
+          <span class="slider-val" id="rho-val">5</span>
+        </div>
+        <div class="slider-track">
+          <input type="range" id="rho-slider" min="0" max="10" value="5"
+                 oninput="updateSlider('rho')" />
+        </div>
+        <div class="ticks">
+          <span class="tick">0</span>
+          <span class="tick">1</span>
+          <span class="tick">2</span>
+          <span class="tick">3</span>
+          <span class="tick">4</span>
+          <span class="tick">5</span>
+          <span class="tick">6</span>
+          <span class="tick">7</span>
+          <span class="tick">8</span>
+          <span class="tick">9</span>
+          <span class="tick">10</span>
+        </div>
+
+        <button class="helper-toggle" id="rho-toggle"
+                onclick="toggleHelper('rho')">
+          What's the heck is this?
+          <span class="helper-arrow">▼</span>
+        </button>
+        <div class="helper-body" id="rho-body">
+          bla bla bla... (explanation of Form Change Factor: how much
+          each match result updates the teams' dynamic ratings before
+          the next match.)
+          <br/><span class="helper-close" onclick="toggleHelper('rho')">▲ Close</span>
+        </div>
+      </div>
+
+      <!-- Mu slider -->
+      <div class="slider-group">
+        <div class="slider-meta">
+          <span class="slider-name">Shock Factor</span>
+          <span class="slider-val" id="mu-val">5</span>
+        </div>
+        <div class="slider-track">
+          <input type="range" id="mu-slider" min="0" max="10" value="5"
+                 oninput="updateSlider('mu')" />
+        </div>
+        <div class="ticks">
+          <span class="tick">0</span>
+          <span class="tick">1</span>
+          <span class="tick">2</span>
+          <span class="tick">3</span>
+          <span class="tick">4</span>
+          <span class="tick">5</span>
+          <span class="tick">6</span>
+          <span class="tick">7</span>
+          <span class="tick">8</span>
+          <span class="tick">9</span>
+          <span class="tick">10</span>
+        </div>
+
+        <button class="helper-toggle" id="mu-toggle"
+                onclick="toggleHelper('mu')">
+          What's the heck is this?
+          <span class="helper-arrow">▼</span>
+        </button>
+        <div class="helper-body" id="mu-body">
+          bla bla bla... (explanation of Shock Factor: how much the
+          model compresses the win-probability gap between a favourite
+          and an underdog — higher values make upsets more likely.)
+          <br/><span class="helper-close" onclick="toggleHelper('mu')">▲ Close</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="run-btn" id="run-btn" onclick="runSimulation()">
+        ⚽ RUN SIMULATION
+      </button>
+
+      <div class="error-banner" id="error-banner"></div>
+    </div>
+
+    <!-- ── Loading ── -->
+    <div id="loading">
+      <div class="spinner"></div>
+      <p class="loading-text">
+        Simulating the World Cup…<br />
+        <span style="font-size:.82rem;">This may take 10–30 seconds.</span>
+      </p>
+    </div>
+
+    <!-- ── Results ── -->
+    <div id="results">
+
+      <div class="result-card">
+        <h2>⚽ Group Stage Tables</h2>
+        <img class="gs-img" id="gs-img" src="" alt="Group Stage Results" />
+      </div>
+
+      <div class="result-card">
+        <h2>🏆 Knockout Bracket</h2>
+        <div class="bracket-scroll" id="bracket"></div>
+      </div>
+
+      <button class="reset-btn" onclick="resetSimulation()">
+        ↺ &nbsp; Run Another Simulation
+      </button>
+
+    </div>
+
+  </div><!-- /container -->
+
+  <script>
+    // ── API URL ───────────────────────────────────────────────────
+    const IS_LOCAL = ['localhost','127.0.0.1'].includes(window.location.hostname);
+    const API_URL = 'http://127.0.0.1:8000/simulate'
+    // const API_URL  = IS_LOCAL
+    //  ? 'http://localhost:8000/simulate'
+    //  : '/api/simulate';          // same-origin on Vercel
+
+    // ── Slider helpers ────────────────────────────────────────────
+    function updateSlider(id) {
+      const el  = document.getElementById(id + '-slider');
+      const val = parseInt(el.value);
+      document.getElementById(id + '-val').textContent = val;
+      const pct = val * 10;
+      el.style.background =
+        `linear-gradient(to right, var(--green) 0%, var(--green) ${pct}%, ` +
+        `rgba(255,255,255,.12) ${pct}%, rgba(255,255,255,.12) 100%)`;
+    }
+    // initialise gradient on load
+    updateSlider('rho');
+    updateSlider('mu');
+
+    // ── Helper accordion ──────────────────────────────────────────
+    function toggleHelper(id) {
+      const btn  = document.getElementById(id + '-toggle');
+      const body = document.getElementById(id + '-body');
+      btn.classList.toggle('expanded');
+      body.classList.toggle('open');
+    }
+
+    // ── Simulation ────────────────────────────────────────────────
+    async function runSimulation() {
+      const rho = parseInt(document.getElementById('rho-slider').value) / 10;
+      const mu  = parseInt(document.getElementById('mu-slider').value)  / 10;
+
+      // hide panel, show spinner
+      document.getElementById('control-panel').style.display = 'none';
+      document.getElementById('error-banner').classList.remove('visible');
+      document.getElementById('loading').classList.add('visible');
+      document.getElementById('results').classList.remove('visible');
+
+      try {
+        const res = await fetch(API_URL, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ rho, mu })
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || 'Simulation failed.');
+        }
+
+        const data = await res.json();
+
+        document.getElementById('loading').classList.remove('visible');
+
+        // populate results
+        document.getElementById('gs-img').src =
+          'data:image/png;base64,' + data.group_stage_image;
+        document.getElementById('bracket').innerHTML = data.bracket_html;
+
+        document.getElementById('results').classList.add('visible');
+
+        // smooth scroll to results
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+
+      } catch (err) {
+        document.getElementById('loading').classList.remove('visible');
+        document.getElementById('control-panel').style.display = 'block';
+        const banner = document.getElementById('error-banner');
+        banner.textContent = '⚠ ' + err.message;
+        banner.classList.add('visible');
+      }
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────
+    function resetSimulation() {
+      document.getElementById('results').classList.remove('visible');
+      document.getElementById('control-panel').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

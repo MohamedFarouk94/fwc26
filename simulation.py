@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from xgboost import XGBRegressor
 from pandas.api.types import is_float_dtype
+import io
+import base64
 
 
 VENUE_ = None
@@ -58,7 +60,7 @@ def update_dwi(dwi, asi_opp, y, i, alpha=0.25, k=2, rho=1):
 
 
 class GoalGenerator:
-    def __init__(self, seed=0):
+    def __init__(self, seed=int(time())):
         self.rng = random.Random(seed)
 
     def fit(self, lambdas_in_pairs, scores):
@@ -69,7 +71,7 @@ class GoalGenerator:
 
 
 class Poisson1X2Generator(GoalGenerator):
-    def __init__(self, seed=0, mu=0.5, n=10):
+    def __init__(self, seed=int(time()), mu=0.5, n=10):
         self.original_rng = random.Random(seed)
         self.rng = np.random.default_rng(seed)
         self.shuffle_rng = random.Random(seed)
@@ -708,12 +710,19 @@ class GroupStage:
         self._decide_best_thirds()
         self._decide_best_thirds_opponents()
 
-    def plot_tables(self):
+    def plot_tables(self, buffer=False):
         fig, axs = plt.subplots(4, 3, figsize=(20, 20))
         axs = axs.flatten()
         for i, (group, ax) in enumerate(zip(self.groups_, axs)):
             group.plot(ax)
         [fig.delaxes(ax) for ax in axs[i + 1:]]
+
+        if buffer:
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', bbox_inches='tight')
+            plt.close()
+            return buffer
+
         plt.show()
 # alias
 GS = GroupStage
@@ -837,6 +846,214 @@ class Tournament:
            getattr(self, ko).scoreboard()
            print('-' * 30)
 
+    def _collect_bracket_matches(self):
+        """DFS (pre-order, side1 before side2) to collect knockout
+        matches in top-to-bottom display order, grouped by round depth.
+        Depth 0 = earliest knockout round (e.g. R32), max depth = Final."""
+        from collections import defaultdict
+ 
+        if not self.knockout_rounds_:
+            return {}
+ 
+        final_ko  = getattr(self, self.knockout_rounds_[-1])
+        final_match = final_ko.matches_[0]
+        max_depth = len(self.knockout_rounds_) - 1
+ 
+        rounds  = defaultdict(list)
+        visited = set()
+ 
+        def dfs(src, depth):
+            if not isinstance(src, Match):
+                return
+            mid = id(src)
+            if mid in visited:
+                return
+            visited.add(mid)
+            rounds[depth].append(src)
+            dfs(src.side1_.coming_from_, depth - 1)
+            dfs(src.side2_.coming_from_, depth - 1)
+ 
+        dfs(final_match, max_depth)
+        return dict(rounds)
+ 
+    def _match_to_dict(self, match):
+        """Return a plain dict with display data for one match."""
+        s1, s2 = match.get_score()
+        t1      = str(match.side1_.get_team())
+        t2      = str(match.side2_.get_team())
+        winner  = str(match.Winner.get_team())
+        suffix  = ''
+        if match.pk_ > 0:
+            suffix = 'a.p.'
+        elif match.et_:
+            suffix = 'a.e.t.'
+        return dict(team1=t1, team2=t2, score1=s1, score2=s2,
+                    winner=winner, suffix=suffix)
+ 
+    def _match_card_html(self, m):
+        """Inline-styled HTML card for one match."""
+        t1w = m['winner'] == m['team1']
+        t2w = m['winner'] == m['team2']
+        s1  = ('background:#d4edda;font-weight:700;' if t1w else
+               'background:#fff;font-weight:400;')
+        s2  = ('background:#d4edda;font-weight:700;' if t2w else
+               'background:#fff;font-weight:400;')
+        sfx = ''
+        if m['suffix']:
+            sfx = (f'<div style="font-size:10px;color:#888;text-align:center;'
+                   f'padding:1px 6px;background:#f9f9f9;">{m["suffix"]}</div>')
+        base = ('border:1px solid #d0d8e0;border-radius:5px;overflow:hidden;'
+                'box-shadow:0 1px 4px rgba(0,0,0,.09);min-width:155px;')
+        row  = ('display:flex;justify-content:space-between;align-items:center;'
+                'padding:5px 9px;border-bottom:1px solid #eee;')
+        last = ('display:flex;justify-content:space-between;align-items:center;'
+                'padding:5px 9px;')
+        nm   = 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
+        sc   = 'font-weight:700;min-width:18px;text-align:right;margin-left:6px;'
+        return (
+            f'<div style="{base}">'
+            f'<div style="{row}{s1}">'
+            f'<span style="{nm}">{m["team1"]}</span>'
+            f'<span style="{sc}">{m["score1"]}</span>'
+            f'</div>'
+            f'<div style="{last}{s2}">'
+            f'<span style="{nm}">{m["team2"]}</span>'
+            f'<span style="{sc}">{m["score2"]}</span>'
+            f'</div>'
+            f'{sfx}'
+            f'</div>'
+        )
+ 
+    def _render_bracket_html(self, all_rounds, round_names):
+        """Build the full bracket HTML from a list-of-rounds (each round is a
+        list of match-dicts in top-to-bottom display order)."""
+        n_rounds = len(all_rounds)
+        first_n  = len(all_rounds[0])
+        SLOT_H   = 74          # px per match slot in the first (deepest) round
+        TOTAL_H  = first_n * SLOT_H
+        HDR_H    = 44          # px for the round header row
+        C        = '#9db8c8'   # connector line colour
+ 
+        wrap = (
+            'display:flex;font-family:"Segoe UI",Arial,sans-serif;font-size:12px;'
+            'padding:20px;background:#edf1f6;overflow-x:auto;'
+            'min-width:max-content;border-radius:10px;'
+        )
+        parts = [f'<div style="{wrap}">']
+ 
+        for ri, (name, matches) in enumerate(zip(round_names, all_rounds)):
+            n       = len(matches)
+            slot_h  = TOTAL_H // n
+            is_last = ri == n_rounds - 1
+ 
+            # ── round column ──────────────────────────────────────
+            parts.append('<div style="display:flex;flex-direction:column;">')
+ 
+            # header badge
+            parts.append(
+                f'<div style="height:{HDR_H}px;display:flex;align-items:center;'
+                f'justify-content:center;padding:0 8px;">'
+                f'<div style="font-weight:700;padding:5px 13px;'
+                f'background:#1e3a5f;color:#fff;border-radius:5px;'
+                f'font-size:11px;white-space:nowrap;letter-spacing:.6px;">'
+                f'{name.upper()}</div></div>'
+            )
+ 
+            # matches area
+            parts.append(
+                f'<div style="height:{TOTAL_H}px;display:flex;'
+                f'flex-direction:column;min-width:182px;">'
+            )
+ 
+            for mi, m in enumerate(matches):
+                is_top = (mi % 2 == 0)
+ 
+                parts.append(
+                    f'<div style="height:{slot_h}px;display:flex;'
+                    f'align-items:center;padding:2px 6px;">'
+                )
+                parts.append('<div style="flex:1;min-width:0;">')
+                parts.append(self._match_card_html(m))
+                parts.append('</div>')
+ 
+                # right connector arm (not on the Final column)
+                if not is_last:
+                    if is_top:
+                        # ─┐  (horizontal at match centre, then down)
+                        parts.append(
+                            f'<div style="width:18px;height:100%;'
+                            f'display:flex;flex-direction:column;">'
+                            f'<div style="flex:1;"></div>'
+                            f'<div style="flex:1;border-top:2px solid {C};'
+                            f'border-right:2px solid {C};"></div>'
+                            f'</div>'
+                        )
+                    else:
+                        # ─┘  (up from bottom, then horizontal at match centre)
+                        parts.append(
+                            f'<div style="width:18px;height:100%;'
+                            f'display:flex;flex-direction:column;">'
+                            f'<div style="flex:1;border-bottom:2px solid {C};'
+                            f'border-right:2px solid {C};"></div>'
+                            f'<div style="flex:1;"></div>'
+                            f'</div>'
+                        )
+ 
+                parts.append('</div>')   # close match slot
+ 
+            parts.append('</div>')       # close matches area
+            parts.append('</div>')       # close round column
+ 
+            # ── inter-round horizontal connector ──────────────────
+            if not is_last:
+                next_n      = len(all_rounds[ri + 1])
+                next_slot_h = TOTAL_H // next_n
+ 
+                parts.append('<div style="display:flex;flex-direction:column;">')
+                parts.append(f'<div style="height:{HDR_H}px;"></div>')
+                parts.append(
+                    f'<div style="height:{TOTAL_H}px;width:14px;'
+                    f'display:flex;flex-direction:column;">'
+                )
+                for _ in range(next_n):
+                    parts.append(
+                        f'<div style="height:{next_slot_h}px;'
+                        f'display:flex;align-items:center;">'
+                        f'<div style="width:100%;height:2px;'
+                        f'background:{C};"></div></div>'
+                    )
+                parts.append('</div>')
+                parts.append('</div>')  # inter-round connector col
+ 
+        parts.append('</div>')  # outer wrapper
+        return '\n'.join(parts)
+
+    def plot_bracket(self):
+        """Return an HTML string containing the full knockout bracket."""
+        rounds = self._collect_bracket_matches()
+        if not rounds:
+            return '<p>No bracket data available.</p>'
+ 
+        sorted_keys = sorted(rounds.keys())
+        n = len(sorted_keys)
+        NAMES = ['Round of 32', 'Round of 16', 'Quarter-finals',
+                 'Semi-finals', 'Final']
+        round_names = NAMES[max(0, 5 - n):][:n]
+ 
+        all_rounds = [
+            [self._match_to_dict(m) for m in rounds[k]]
+            for k in sorted_keys
+        ]
+        return self._render_bracket_html(all_rounds, round_names)
+ 
+    def get_plot(self):
+        result = {}
+        buffer = self.GS.plot_tables(buffer=True)
+        result['group_stage_image'] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+ 
+        result['bracket_html'] = self.plot_bracket()
+        return result
+
 
 class TournamentReport(adict):  # adict is ArithmeticDict, created in utils (Section 1.3)
     _ATTRIBUTES_INT = ['avg_goals_per_match', 'draw_ratio', 'oo_ratio',
@@ -915,7 +1132,7 @@ class SimulationManager:
         PXGBR_ = XGBRegressor(**joblib.load("models/params.joblib"))
         PXGBR_.load_model("models/model.json")
         GG_['1x2'] = Poisson1X2Generator(mu=self.mu_)
-        RANDOM_ = random.Random(time())
+        RANDOM_ = random.Random(int(time()))
         VENUE_ = venue_weight_26
 
     def run(self, verbose=0):
@@ -1093,4 +1310,4 @@ def run_sim(rho=0.5, mu=0.5):
     sm = SM(n=1, year=2026, wc_builder=wc26_builder, rho=rho, mu=mu)
     sm.run()
     wc = sm.trs_[0].wc
-    wc.plot()
+    return wc.get_plot()
