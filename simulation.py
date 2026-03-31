@@ -1,3 +1,6 @@
+from time import time
+
+import joblib
 import numpy as np
 import pandas as pd
 import random
@@ -8,17 +11,33 @@ from plottable import Table, ColumnDefinition
 from plottable.plots import image
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from xgboost import XGBRegressor
+from pandas.api.types import is_float_dtype
 
 
 VENUE_ = None
 RATINGS_ = None
 ASI_ = None
 DWI_ = None
-GG_ = None
+GG_ = {}
 PXGBR_ = None
 RANDOM_ = None
-FLAGS = None
+FLAGS = {}
 
+def venue_weight_26(team1, team2):
+    if team1 == 'USA':
+        return 1, 0
+    if team2 == 'USA':
+        return 0, 1
+    if team1 == 'Mexico':
+        return 1, 0
+    if team2 == 'Mexico':
+        return 0, 1
+    if team1 == 'Canada':
+        return 1, 0
+    if team2 == 'Canada':
+        return 0, 1
+    return 0.5, 0.5
 
 def update_rating(r, r_opp, i, g1, g2, c=0.1, rho=1):
     d = r - r_opp
@@ -39,7 +58,7 @@ def update_dwi(dwi, asi_opp, y, i, alpha=0.25, k=2, rho=1):
 
 
 class GoalGenerator:
-    def __init__(self, seed=42):
+    def __init__(self, seed=0):
         self.rng = random.Random(seed)
 
     def fit(self, lambdas_in_pairs, scores):
@@ -50,7 +69,7 @@ class GoalGenerator:
 
 
 class Poisson1X2Generator(GoalGenerator):
-    def __init__(self, seed=42, mu=0.5, n=10):
+    def __init__(self, seed=0, mu=0.5, n=10):
         self.original_rng = random.Random(seed)
         self.rng = np.random.default_rng(seed)
         self.shuffle_rng = random.Random(seed)
@@ -564,7 +583,7 @@ class Group:
         df.Team = df.Team.apply(lambda x: FLAGS[x])
 
         for col in df.columns:
-            if np.issubdtype(df[col].dtype, np.floating):
+            if is_float_dtype(df[col]):
                 df[col] = df[col].round(2)
 
         col_defs = [
@@ -885,27 +904,29 @@ TR = TournamentReport
 
 class SimulationManager:
     def __init__(self, n=1000, rho=0.5, mu=0.5, year=2026,
-                 wc_builder=lambda: None, seed=42):
-        global GG_, to_keep, RANDOM_, PXGBR_, venues, VENUE_, pxgbrs
+                 wc_builder=lambda: None):
+        global GG_, to_keep, RANDOM_, PXGBR_, VENUE_
         self.year_ = year
         self.n_ = n
         self.rho_ = rho
         self.mu_ = mu
         self.build = wc_builder
         self.trs_ = []
-        PXGBR_ = pxgbrs[year]
+        PXGBR_ = XGBRegressor(**joblib.load("models/params.joblib"))
+        PXGBR_.load_model("models/model.json")
         GG_['1x2'] = Poisson1X2Generator(mu=self.mu_)
-        RANDOM_ = random.Random(seed)
-        VENUE_ = venues[year]
+        RANDOM_ = random.Random(time())
+        VENUE_ = venue_weight_26
 
     def run(self, verbose=0):
-        global ASI_, DWI_, RATINGS_, wcs
+        global ASI_, DWI_, RATINGS_
+        teams_data = pd.read_csv('data/teams_data.csv')
         tr_sum = TR()
         iterable = tqdm(range(self.n_), desc='Running Simulation') if verbose else range(self.n_)
         for _ in iterable:
-            RATINGS_ = wcs[self.year_]['rate'].copy()
-            ASI_ = wcs[self.year_]['asi'].copy()
-            DWI_ = wcs[self.year_]['dwi'].copy()
+            RATINGS_ = {team: rate for team, rate in zip(teams_data.team, teams_data.rate)}
+            ASI_ = {team: asi for team, asi in zip(teams_data.team, teams_data.asi)}
+            DWI_ ={team: dwi for team, dwi in zip(teams_data.team, teams_data.dwi)}
             wc = self.build(rho=self.rho_)
             wc.play()
             tr = TR(wc=wc)
@@ -916,3 +937,160 @@ class SimulationManager:
         self.report_ /= self.n_
 # alias
 SM = SimulationManager
+
+Albania = Team(name='Albania', flag='data/flags/AL.png', continent='UEFA', nwcs=0); FLAGS[Albania] = Albania.flag_
+Algeria = Team(name='Algeria', flag='data/flags/DZ.png', continent='CAF', nwcs=0); FLAGS[Algeria] = Algeria.flag_
+Argentina = Team(name='Argentina', flag='data/flags/AR.png', continent='CONMEBOL', nwcs=3); FLAGS[Argentina] = Argentina.flag_
+Australia = Team(name='Australia', flag='data/flags/AU.png', continent='AFC', nwcs=0); FLAGS[Australia] = Australia.flag_
+Austria = Team(name='Austria', flag='data/flags/AT.png', continent='UEFA', nwcs=0); FLAGS[Austria] = Austria.flag_
+Belgium = Team(name='Belgium', flag='data/flags/BE.png', continent='UEFA', nwcs=0); FLAGS[Belgium] = Belgium.flag_
+Bolivia = Team(name='Bolivia', flag='data/flags/BO.png', continent='CONMEBOL', nwcs=0); FLAGS[Bolivia] = Bolivia.flag_
+Bosnia = Team(name='Bosnia', flag='data/flags/BA.png', continent='UEFA', nwcs=0); FLAGS[Bosnia] = Bosnia.flag_
+Brazil = Team(name='Brazil', flag='data/flags/BR.png', continent='CONMEBOL', nwcs=5); FLAGS[Brazil] = Brazil.flag_
+CIV = Team(name='CIV', flag='data/flags/CI.png', continent='CAF', nwcs=0); FLAGS[CIV] = CIV.flag_
+CPV = Team(name='CPV', flag='data/flags/CV.png', continent='CAF', nwcs=0); FLAGS[CPV] = CPV.flag_
+CR = Team(name='CR', flag='data/flags/CR.png', continent='CONCACAF', nwcs=0); FLAGS[CR] = CR.flag_
+Cameroon = Team(name='Cameroon', flag='data/flags/CM.png', continent='CAF', nwcs=0); FLAGS[Cameroon] = Cameroon.flag_
+Canada = Team(name='Canada', flag='data/flags/CA.png', continent='CONCACAF', nwcs=0); FLAGS[Canada] = Canada.flag_
+Chile = Team(name='Chile', flag='data/flags/CL.png', continent='CONMEBOL', nwcs=0); FLAGS[Chile] = Chile.flag_
+Colombia = Team(name='Colombia', flag='data/flags/CO.png', continent='CONMEBOL', nwcs=0); FLAGS[Colombia] = Colombia.flag_
+Croatia = Team(name='Croatia', flag='data/flags/HR.png', continent='UEFA', nwcs=0); FLAGS[Croatia] = Croatia.flag_
+Curacao = Team(name='Curacao', flag='data/flags/CUR.png', continent='CONCACAF', nwcs=0); FLAGS[Curacao] = Curacao.flag_
+Czechia = Team(name='Czechia', flag='data/flags/CZ.png', continent='UEFA', nwcs=0); FLAGS[Czechia] = Czechia.flag_
+DRC = Team(name='DRC', flag='data/flags/CD.png', continent='CAF', nwcs=0); FLAGS[DRC] = DRC.flag_
+Denmark = Team(name='Denmark', flag='data/flags/DK.png', continent='UEFA', nwcs=0); FLAGS[Denmark] = Denmark.flag_
+Ecuador = Team(name='Ecuador', flag='data/flags/EC.png', continent='CONMEBOL', nwcs=0); FLAGS[Ecuador] = Ecuador.flag_
+Egypt = Team(name='Egypt', flag='data/flags/EG.png', continent='CAF', nwcs=0); FLAGS[Egypt] = Egypt.flag_
+England = Team(name='England', flag='data/flags/ENG.png', continent='UEFA', nwcs=1); FLAGS[England] = England.flag_
+France = Team(name='France', flag='data/flags/FR.png', continent='UEFA', nwcs=2); FLAGS[France] = France.flag_
+Germany = Team(name='Germany', flag='data/flags/DE.png', continent='UEFA', nwcs=4); FLAGS[Germany] = Germany.flag_
+Ghana = Team(name='Ghana', flag='data/flags/GH.png', continent='CAF', nwcs=0); FLAGS[Ghana] = Ghana.flag_
+Greece = Team(name='Greece', flag='data/flags/GR.png', continent='UEFA', nwcs=0); FLAGS[Greece] = Greece.flag_
+Haiti = Team(name='Haiti', flag='data/flags/HT.png', continent='CONCACAF', nwcs=0); FLAGS[Haiti] = Haiti.flag_
+Honduras = Team(name='Honduras', flag='data/flags/HN.png', continent='CONCACAF', nwcs=0); FLAGS[Honduras] = Honduras.flag_
+Iceland = Team(name='Iceland', flag='data/flags/IS.png', continent='UEFA', nwcs=0); FLAGS[Iceland] = Iceland.flag_
+Iran = Team(name='Iran', flag='data/flags/IR.png', continent='AFC', nwcs=0); FLAGS[Iran] = Iran.flag_
+Iraq = Team(name='Iraq', flag='data/flags/IQ.png', continent='AFC', nwcs=0); FLAGS[Iraq] = Iraq.flag_
+Ireland = Team(name='Ireland', flag='data/flags/IE.png', continent='UEFA', nwcs=0); FLAGS[Ireland] = Ireland.flag_
+Italy = Team(name='Italy', flag='data/flags/IT.png', continent='UEFA', nwcs=4); FLAGS[Italy] = Italy.flag_
+Jamaica = Team(name='Jamaica', flag='data/flags/JM.png', continent='CONCACAF', nwcs=0); FLAGS[Jamaica] = Jamaica.flag_
+Japan = Team(name='Japan', flag='data/flags/JP.png', continent='AFC', nwcs=0); FLAGS[Japan] = Japan.flag_
+Jordan = Team(name='Jordan', flag='data/flags/JO.png', continent='AFC', nwcs=0); FLAGS[Jordan] = Jordan.flag_
+KSA = Team(name='KSA', flag='data/flags/SA.png', continent='AFC', nwcs=0); FLAGS[KSA] = KSA.flag_
+Korea = Team(name='Korea', flag='data/flags/KR.png', continent='AFC', nwcs=0); FLAGS[Korea] = Korea.flag_
+Kosovo = Team(name='Kosovo', flag='data/flags/RS.png', continent='UEFA', nwcs=0); FLAGS[Kosovo] = Kosovo.flag_
+Macedonia = Team(name='Macedonia', flag='data/flags/MK.png', continent='UEFA', nwcs=0); FLAGS[Macedonia] = Macedonia.flag_
+Mexico = Team(name='Mexico', flag='data/flags/MX.png', continent='CONCACAF', nwcs=0); FLAGS[Mexico] = Mexico.flag_
+Morocco = Team(name='Morocco', flag='data/flags/MA.png', continent='CAF', nwcs=0); FLAGS[Morocco] = Morocco.flag_
+NC = Team(name='NC', flag='data/flags/NC.png', continent='OFC', nwcs=0); FLAGS[NC] = NC.flag_
+NIR = Team(name='NIR', flag='data/flags/NIR.png', continent='UEFA', nwcs=0); FLAGS[NIR] = NIR.flag_
+NK = Team(name='NK', flag='data/flags/KP.png', continent='AFC', nwcs=0); FLAGS[NK] = NK.flag_
+NZ = Team(name='NZ', flag='data/flags/NZ.png', continent='OFC', nwcs=0); FLAGS[NZ] = NZ.flag_
+Netherlands = Team(name='Netherlands', flag='data/flags/NL.png', continent='UEFA', nwcs=0); FLAGS[Netherlands] = Netherlands.flag_
+Nigeria = Team(name='Nigeria', flag='data/flags/NG.png', continent='CAF', nwcs=0); FLAGS[Nigeria] = Nigeria.flag_
+Norway = Team(name='Norway', flag='data/flags/NO.png', continent='UEFA', nwcs=0); FLAGS[Norway] = Norway.flag_
+Panama = Team(name='Panama', flag='data/flags/PA.png', continent='CONCACAF', nwcs=0); FLAGS[Panama] = Panama.flag_
+Paraguay = Team(name='Paraguay', flag='data/flags/PY.png', continent='CONMEBOL', nwcs=0); FLAGS[Paraguay] = Paraguay.flag_
+Peru = Team(name='Peru', flag='data/flags/PE.png', continent='CONMEBOL', nwcs=0); FLAGS[Peru] = Peru.flag_
+Poland = Team(name='Poland', flag='data/flags/PL.png', continent='UEFA', nwcs=0); FLAGS[Poland] = Poland.flag_
+Portugal = Team(name='Portugal', flag='data/flags/PT.png', continent='UEFA', nwcs=0); FLAGS[Portugal] = Portugal.flag_
+Qatar = Team(name='Qatar', flag='data/flags/QA.png', continent='AFC', nwcs=0); FLAGS[Qatar] = Qatar.flag_
+RSA = Team(name='RSA', flag='data/flags/ZA.png', continent='CAF', nwcs=0); FLAGS[RSA] = RSA.flag_
+Romania = Team(name='Romania', flag='data/flags/RO.png', continent='UEFA', nwcs=0); FLAGS[Romania] = Romania.flag_
+Russia = Team(name='Russia', flag='data/flags/RU.png', continent='UEFA', nwcs=0); FLAGS[Russia] = Russia.flag_
+Scotland = Team(name='Scotland', flag='data/flags/SCO.png', continent='UEFA', nwcs=0); FLAGS[Scotland] = Scotland.flag_
+Senegal = Team(name='Senegal', flag='data/flags/SN.png', continent='CAF', nwcs=0); FLAGS[Senegal] = Senegal.flag_
+Serbia = Team(name='Serbia', flag='data/flags/RS.png', continent='UEFA', nwcs=0); FLAGS[Serbia] = Serbia.flag_
+Slovakia = Team(name='Slovakia', flag='data/flags/SK.png', continent='UEFA', nwcs=0); FLAGS[Slovakia] = Slovakia.flag_
+Slovenia = Team(name='Slovenia', flag='data/flags/SI.png', continent='UEFA', nwcs=0); FLAGS[Slovenia] = Slovenia.flag_
+Spain = Team(name='Spain', flag='data/flags/ES.png', continent='UEFA', nwcs=1); FLAGS[Spain] = Spain.flag_
+Suriname = Team(name='Suriname', flag='data/flags/SR.png', continent='CONCACAF', nwcs=0); FLAGS[Suriname] = Suriname.flag_
+Sweden = Team(name='Sweden', flag='data/flags/SE.png', continent='UEFA', nwcs=0); FLAGS[Sweden] = Sweden.flag_
+Switzerland = Team(name='Switzerland', flag='data/flags/CH.png', continent='UEFA', nwcs=0); FLAGS[Switzerland] = Switzerland.flag_
+Tunisia = Team(name='Tunisia', flag='data/flags/TN.png', continent='CAF', nwcs=0); FLAGS[Tunisia] = Tunisia.flag_
+Turkey = Team(name='Turkey', flag='data/flags/TR.png', continent='UEFA', nwcs=0); FLAGS[Turkey] = Turkey.flag_
+USA = Team(name='USA', flag='data/flags/US.png', continent='CONCACAF', nwcs=0); FLAGS[USA] = USA.flag_
+Ukraine = Team(name='Ukraine', flag='data/flags/UA.png', continent='UEFA', nwcs=0); FLAGS[Ukraine] = Ukraine.flag_
+Uruguay = Team(name='Uruguay', flag='data/flags/UY.png', continent='CONMEBOL', nwcs=2); FLAGS[Uruguay] = Uruguay.flag_
+Uzbekistan = Team(name='Uzbekistan', flag='data/flags/UZ.png', continent='AFC', nwcs=0); FLAGS[Uzbekistan] = Uzbekistan.flag_
+Wales = Team(name='Wales', flag='data/flags/WLS.png', continent='UEFA', nwcs=0); FLAGS[Wales] = Wales.flag_
+
+
+df = pd.read_csv('data/best_thirds_fwc26.csv')
+def wc26_builder(rho=1):
+    wc26 = Tournament(group_stages=['GS'], 
+                  knockout_rounds=['R32', 'R16', 'QF', 'SF', 'F'],
+                  best_thirds=[8],
+                  third_combinations=[df], rho=rho, gg='1x2')
+
+    wc26.GSGroups = [
+        G(~Mexico, ~RSA, ~Korea, ~Denmark),
+        G(~Canada, ~Italy, ~Qatar, ~Switzerland),
+        G(~Brazil, ~Morocco, ~Haiti, ~Scotland),
+        G(~USA, ~Paraguay, ~Australia, ~Turkey),
+        G(~Germany, ~Curacao, ~CIV, ~Ecuador),
+        G(~Netherlands, ~Japan, ~Poland, ~Tunisia),
+        G(~Belgium, ~Egypt, ~Iran, ~NZ),
+        G(~Spain, ~CPV, ~KSA, ~Uruguay),
+        G(~France, ~Senegal, ~Iraq, ~Norway),
+        G(~Argentina, ~Algeria, ~Austria, ~Jordan),
+        G(~Portugal, ~DRC, ~Uzbekistan, ~Colombia),
+        G(~England, ~Croatia, ~Ghana, ~Panama)
+    ]
+    
+    wc26.R32Matches = [
+        wc26.GS.A.Runnerup * wc26.GS.B.Runnerup,  # 73 (1)
+        wc26.GS.E.Winner * wc26.GS.BestThirds['toFace1E'],  # 74 (2)
+        wc26.GS.F.Winner * wc26.GS.C.Runnerup,  # 75 (3)
+        wc26.GS.C.Winner * wc26.GS.F.Runnerup,  # 76 (4)
+        wc26.GS.I.Winner * wc26.GS.BestThirds['toFace1I'],  # 77 (5)
+        wc26.GS.E.Runnerup * wc26.GS.I.Runnerup, # 78 (6)
+        wc26.GS.A.Winner * wc26.GS.BestThirds['toFace1A'],  # 79 (7)
+        wc26.GS.L.Winner * wc26.GS.BestThirds['toFace1L'],  # 80 (8)
+        wc26.GS.D.Winner * wc26.GS.BestThirds['toFace1D'],  # 81 (9)
+        wc26.GS.G.Winner * wc26.GS.BestThirds['toFace1G'],  # 82 (10)
+        wc26.GS.K.Runnerup * wc26.GS.L.Runnerup,  # 83 (11)
+        wc26.GS.H.Winner * wc26.GS.J.Runnerup,  # 84 (12)
+        wc26.GS.B.Winner * wc26.GS.BestThirds['toFace1B'],  # 85 (13)
+        wc26.GS.J.Winner * wc26.GS.H.Runnerup,  # 86 (14)
+        wc26.GS.K.Winner * wc26.GS.BestThirds['toFace1K'],  # 87 (15)
+        wc26.GS.D.Runnerup * wc26.GS.G.Runnerup  # 88 (16)
+    ]
+    
+    wc26.R16Matches = [
+        wc26.R32.M2.Winner * wc26.R32.M5.Winner,
+        wc26.R32.M1.Winner * wc26.R32.M3.Winner,
+        wc26.R32.M11.Winner * wc26.R32.M12.Winner,
+        wc26.R32.M9.Winner * wc26.R32.M10.Winner,
+        wc26.R32.M4.Winner * wc26.R32.M6.Winner,
+        wc26.R32.M7.Winner * wc26.R32.M8.Winner,
+        wc26.R32.M14.Winner * wc26.R32.M16.Winner,
+        wc26.R32.M13.Winner * wc26.R32.M15.Winner
+    ]
+    
+    wc26.QFMatches = [
+        wc26.R16.M1.Winner * wc26.R16.M2.Winner,
+        wc26.R16.M3.Winner * wc26.R16.M4.Winner,
+        wc26.R16.M5.Winner * wc26.R16.M6.Winner,
+        wc26.R16.M7.Winner * wc26.R16.M8.Winner
+    ]
+    
+    wc26.SFMatches = [
+        wc26.QF.M1.Winner * wc26.QF.M2.Winner,
+        wc26.QF.M3.Winner * wc26.QF.M4.Winner
+    ]
+    
+    wc26.FMatches = [
+        wc26.SF.M1.Winner * wc26.SF.M2.Winner
+    ]
+    
+    wc26.Champion = wc26.F.M1.Winner
+
+    return wc26
+
+
+def run_sim(rho=0.5, mu=0.5):
+    sm = SM(n=1, year=2026, wc_builder=wc26_builder, rho=rho, mu=mu)
+    sm.run()
+    wc = sm.trs_[0].wc
+    wc.plot()
