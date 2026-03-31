@@ -362,7 +362,6 @@
       <div class="card-title">Configure Your Simulation</div>
       <p class="card-sub">
         Set the parameters below, then hit <strong style="color:var(--green)">Run</strong>.
-        Values will be scaled to [0–1] before being sent to the model.
       </p>
 
       <!-- Rho slider -->
@@ -391,13 +390,12 @@
 
         <button class="helper-toggle" id="rho-toggle"
                 onclick="toggleHelper('rho')">
-          What's the heck is this?
+          What the heck is this?
           <span class="helper-arrow">▼</span>
         </button>
         <div class="helper-body" id="rho-body">
-          bla bla bla... (explanation of Form Change Factor: how much
-          each match result updates the teams' dynamic ratings before
-          the next match.)
+          Form Change Factor reflects how much a team’s momentum can evolve throughout the tournament. If you believe that form is temporary but confidence is contagious, that a winning streak builds its own gravity and “appetite comes with eating”, then raise this factor. But if you trust that the table doesn’t lie and quality eventually prevails over short-term swings, that surprises are just “a storm in a teacup”, then keep it low.
+
           <br/><span class="helper-close" onclick="toggleHelper('rho')">▲ Close</span>
         </div>
       </div>
@@ -428,13 +426,11 @@
 
         <button class="helper-toggle" id="mu-toggle"
                 onclick="toggleHelper('mu')">
-          What's the heck is this?
+          What the heck is this?
           <span class="helper-arrow">▼</span>
         </button>
         <div class="helper-body" id="mu-body">
-          bla bla bla... (explanation of Shock Factor: how much the
-          model compresses the win-probability gap between a favourite
-          and an underdog — higher values make upsets more likely.)
+          Shock Factor measures how unpredictable the game can get. If you see football as a game where anything can happen, where “the ball is round” and underdogs can write history on any given night, then turn this up. But if you believe the World Cup is a stage where giants usually stand tall, where pedigree and experience narrow the field of true contenders, then keep this value conservative.
           <br/><span class="helper-close" onclick="toggleHelper('mu')">▲ Close</span>
         </div>
       </div>
