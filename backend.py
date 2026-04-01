@@ -37,7 +37,6 @@ class SimParams(BaseModel):
 def simulate(params: SimParams):
     """Run one simulation and return the group-stage image + bracket HTML."""
     try:
-        print('hi')
         sm = SM(n=1, year=2026, wc_builder=wc26_builder,
                 rho=params.rho, mu=params.mu)
         sm.run()
