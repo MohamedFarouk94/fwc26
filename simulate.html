@@ -452,7 +452,7 @@
       <div class="spinner"></div>
       <p class="loading-text">
         Simulating the World Cup…<br />
-        <span style="font-size:.82rem;">This may take 10–30 seconds.</span>
+        <span style="font-size:.82rem;">This may take ~10 seconds.</span>
       </p>
     </div>
 
@@ -479,11 +479,11 @@
 
   <script>
     // ── API URL ───────────────────────────────────────────────────
-    const IS_LOCAL = ['localhost','127.0.0.1'].includes(window.location.hostname);
-    const API_URL = 'http://127.0.0.1:8000/simulate'
-    // const API_URL  = IS_LOCAL
-    //  ? 'http://localhost:8000/simulate'
-    //  : '/api/simulate';          // same-origin on Vercel
+    const IS_LOCAL = window.location.protocol === 'file:' ||
+                     ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    const API_URL = IS_LOCAL
+      ? 'http://localhost:8000/simulate'
+      : '/api/simulate';          // same-origin on Vercel
 
     // ── Slider helpers ────────────────────────────────────────────
     function updateSlider(id) {
