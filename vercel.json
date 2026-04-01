@@ -1,0 +1,15 @@
+{
+  "builds": [
+    { "src": "api/simulate.py", "use": "@vercel/python", "config": { "maxLambdaSize": "50mb" } },
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/simulate", "dest": "api/simulate.py" },
+    { "src": "/api/health",   "dest": "api/simulate.py" },
+    { "src": "/(.*\\.html)",  "dest": "/$1" },
+    { "src": "/",             "dest": "/index.html" }
+  ],
+  "functions": {
+    "api/simulate.py": { "maxDuration": 60 }
+  }
+}

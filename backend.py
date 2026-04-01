@@ -1,8 +1,3 @@
-"""
-WC 2026 Simulator – FastAPI backend
-Run locally with:
-    uvicorn backend:app --reload --port 8000
-"""
 
 import matplotlib
 matplotlib.use('Agg')   # must come before any pyplot import
