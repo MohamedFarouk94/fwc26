@@ -1243,12 +1243,12 @@ def wc26_builder(rho=1):
                   third_combinations=[df], rho=rho, gg='1x2')
 
     wc26.GSGroups = [
-        G(~Mexico, ~RSA, ~Korea, ~Denmark),
-        G(~Canada, ~Italy, ~Qatar, ~Switzerland),
+        G(~Mexico, ~RSA, ~Korea, ~Czechia),
+        G(~Canada, ~Bosnia, ~Qatar, ~Switzerland),
         G(~Brazil, ~Morocco, ~Haiti, ~Scotland),
         G(~USA, ~Paraguay, ~Australia, ~Turkey),
         G(~Germany, ~Curacao, ~CIV, ~Ecuador),
-        G(~Netherlands, ~Japan, ~Poland, ~Tunisia),
+        G(~Netherlands, ~Japan, ~Sweden, ~Tunisia),
         G(~Belgium, ~Egypt, ~Iran, ~NZ),
         G(~Spain, ~CPV, ~KSA, ~Uruguay),
         G(~France, ~Senegal, ~Iraq, ~Norway),
