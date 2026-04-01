@@ -891,21 +891,23 @@ class Tournament:
                     winner=winner, suffix=suffix)
  
     def _match_card_html(self, m):
-        """Inline-styled HTML card for one match."""
+        """Inline-styled HTML card for one match (dark theme)."""
         t1w = m['winner'] == m['team1']
         t2w = m['winner'] == m['team2']
-        s1  = ('background:#d4edda;font-weight:700;' if t1w else
-               'background:#fff;font-weight:400;')
-        s2  = ('background:#d4edda;font-weight:700;' if t2w else
-               'background:#fff;font-weight:400;')
+        # winner row: dark-green tint + bright text; loser: dim bg + muted text
+        s1 = ('background:#0d2e1a;color:#00e676;font-weight:700;' if t1w else
+              'background:#0c1a22;color:#7a9aaa;font-weight:400;')
+        s2 = ('background:#0d2e1a;color:#00e676;font-weight:700;' if t2w else
+              'background:#0c1a22;color:#7a9aaa;font-weight:400;')
         sfx = ''
         if m['suffix']:
-            sfx = (f'<div style="font-size:10px;color:#888;text-align:center;'
-                   f'padding:1px 6px;background:#f9f9f9;">{m["suffix"]}</div>')
-        base = ('border:1px solid #d0d8e0;border-radius:5px;overflow:hidden;'
-                'box-shadow:0 1px 4px rgba(0,0,0,.09);min-width:155px;')
+            sfx = (f'<div style="font-size:10px;color:#4a6a7a;text-align:center;'
+                   f'padding:2px 6px;background:#060d13;">{m["suffix"]}</div>')
+        base = ('border:1px solid rgba(255,255,255,.1);border-radius:5px;'
+                'overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.4);'
+                'min-width:155px;')
         row  = ('display:flex;justify-content:space-between;align-items:center;'
-                'padding:5px 9px;border-bottom:1px solid #eee;')
+                'padding:5px 9px;border-bottom:1px solid rgba(255,255,255,.07);')
         last = ('display:flex;justify-content:space-between;align-items:center;'
                 'padding:5px 9px;')
         nm   = 'flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;'
@@ -932,11 +934,11 @@ class Tournament:
         SLOT_H   = 74          # px per match slot in the first (deepest) round
         TOTAL_H  = first_n * SLOT_H
         HDR_H    = 44          # px for the round header row
-        C        = '#9db8c8'   # connector line colour
+        C        = '#2a5060'   # connector line colour
  
         wrap = (
             'display:flex;font-family:"Segoe UI",Arial,sans-serif;font-size:12px;'
-            'padding:20px;background:#edf1f6;overflow-x:auto;'
+            'padding:20px;background:#060d13;overflow-x:auto;'
             'min-width:max-content;border-radius:10px;'
         )
         parts = [f'<div style="{wrap}">']
