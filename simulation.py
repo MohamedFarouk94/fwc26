@@ -60,8 +60,8 @@ def update_dwi(dwi, asi_opp, y, i, alpha=0.25, k=2, rho=1):
 
 
 class GoalGenerator:
-    def __init__(self, seed=int(time())):
-        self.rng = random.Random(seed)
+    def __init__(self):
+        self.rng = random.Random(int(time()))
 
     def fit(self, lambdas_in_pairs, scores):
         pass
@@ -71,10 +71,10 @@ class GoalGenerator:
 
 
 class Poisson1X2Generator(GoalGenerator):
-    def __init__(self, seed=int(time()), mu=0.5, n=10):
-        self.original_rng = random.Random(seed)
-        self.rng = np.random.default_rng(seed)
-        self.shuffle_rng = random.Random(seed)
+    def __init__(self, mu=0.5, n=10):
+        self.original_rng = random.Random(int(time()))
+        self.rng = np.random.default_rng(int(time()))
+        self.shuffle_rng = random.Random(int(time()))
         self.mu = mu
         self.n = n
 
