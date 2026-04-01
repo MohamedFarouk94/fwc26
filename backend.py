@@ -1,9 +1,16 @@
+"""
+WC 2026 Simulator – FastAPI backend
+Run locally with:
+    uvicorn backend:app --reload --port 8000
+"""
 
 import matplotlib
 matplotlib.use('Agg')   # must come before any pyplot import
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from simulation import SM, wc26_builder
@@ -28,7 +35,8 @@ class SimParams(BaseModel):
 
 
 # ──────────────────────────────────────────────────────────────────
-@app.post("/simulate")
+@app.post("/simulate") 
+@app.post("/api/simulate")
 def simulate(params: SimParams):
     """Run one simulation and return the group-stage image + bracket HTML."""
     try:
@@ -41,6 +49,20 @@ def simulate(params: SimParams):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.get("/health")
+@app.post("/health") 
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# ── Serve static HTML pages ────────────────────────────────────────
+@app.get("/")
+def index():
+    return FileResponse("index.html")
+
+@app.get("/simulate")
+def simulate_page():
+    return FileResponse("simulate.html")
+
+# Serve flag images and other static assets
+app.mount("/data", StaticFiles(directory="data"), name="data")
