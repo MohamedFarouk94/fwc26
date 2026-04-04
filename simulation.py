@@ -42,6 +42,7 @@ def venue_weight_26(team1, team2):
     return 0.5, 0.5
 
 def update_rating(r, r_opp, i, g1, g2, c=0.1, rho=1):
+    i /= 10
     d = r - r_opp
     w = 0.5 if g1 == g2 else int(g1 > g2)
     denom = 10 ** (-d) + 1

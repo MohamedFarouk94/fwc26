@@ -5,7 +5,7 @@ Run locally with:
 """
 
 import matplotlib
-matplotlib.use('Agg')   # must come before any pyplot import
+matplotlib.use('Agg')
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
