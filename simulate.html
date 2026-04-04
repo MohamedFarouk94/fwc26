@@ -481,9 +481,10 @@
     // ── API URL ───────────────────────────────────────────────────
     const IS_LOCAL = window.location.protocol === 'file:' ||
                      ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    const API_URL = IS_LOCAL
-      ? 'http://localhost:8000/simulate'
-      : '/api/simulate';          // same-origin on Vercel
+    // const API_URL = IS_LOCAL
+    //  ? 'http://localhost:8000/simulate'
+    //  : '/api/simulate';          // same-origin on Vercel
+    API_URL = 'https://mfarouk-fwc26.hf.space/simulate'
 
     // ── Slider helpers ────────────────────────────────────────────
     function updateSlider(id) {
